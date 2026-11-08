@@ -5,7 +5,7 @@
 // ==UserScript==
 // @name           Zen Folder Grid
 // @description    Shows chosen tabs of a Zen folder as an icon grid above its normal tabs.
-// @version        0.2.1
+// @version        0.2.2
 // ==/UserScript==
 
 // The script only sets a mark and changes tab order. It never closes or
@@ -601,6 +601,11 @@ function zoneFolder(event) {
     gridOf(folder).length ||
     !draggedTabs(event)
   ) {
+    return null;
+  }
+  // The area opens only from the folder label. Over the tabs it would push
+  // them down while the user reorders them.
+  if (zone?.folder !== folder && !event.target.closest(".tab-group-label-container")) {
     return null;
   }
   return folder;
