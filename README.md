@@ -13,11 +13,21 @@ the folder stay below the grid.
   drag a tab. Drop the tab there to make the first icon.
 - The marks stay after a restart. The script never closes or removes a tab.
 
-Tested on Zen 1.23b.
+Tested on Zen 1.23b, with fx-autoconfig and with Sine 2.3.3.
 
-## Install
+## Install with Sine
 
-The script needs [fx-autoconfig](https://github.com/MrOtherGuy/fx-autoconfig).
+1. Install [Sine](https://github.com/CosmoCreeper/Sine).
+2. In Sine settings, turn on "Enable installing JS from unofficial sources"
+   (`sine.allow-unsafe-js`). Sine runs the JS of a mod that is not in its store
+   only with this setting.
+3. In Sine settings, add the mod `mahirsn/zen-folder-grid`.
+4. Restart Zen.
+
+## Install with fx-autoconfig
+
+Use this way if you do not use Sine. Sine and fx-autoconfig both use
+`<profile>/chrome/utils/`, so install only one of them.
 
 1. Copy `program/config.js` and `program/defaults/` of fx-autoconfig into the
    Zen install folder (for example `/opt/zen-browser-bin`).
