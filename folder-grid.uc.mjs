@@ -5,7 +5,7 @@
 // ==UserScript==
 // @name           Zen Folder Grid
 // @description    Shows chosen tabs of a Zen folder as an icon grid above its normal tabs.
-// @version        0.2.0
+// @version        0.2.1
 // ==/UserScript==
 
 // The script only sets a mark and changes tab order. It never closes or
@@ -100,6 +100,12 @@ const CSS = `
   & .tab-icon-image,
   & .tab-icon-overlay {
     margin-inline-end: 0 !important;
+  }
+  /* Zen moves the icon of a changed pinned tab to the left for its reset
+     button. Essentials are exempt, and so are the tiles. */
+  &[zen-pinned-changed="true"] > .tab-stack > .tab-content > .tab-icon-stack {
+    position: static !important;
+    transform: none !important;
   }
   &:hover .tab-background {
     background: light-dark(rgba(0, 0, 0, 0.1), var(--tab-background-color-selected));
