@@ -5,6 +5,7 @@ as an icon grid at the top of the folder, like Essentials. The normal tabs of
 the folder stay below the grid.
 
 - Right-click a tab in a folder: **Show as Icon** / **Show as Tab**.
+- The icons look and act like Essentials tiles.
 - Drag a tab onto the grid to add it. Drag inside the grid to change the order.
   Drag an icon out of the grid to make it a normal tab again.
 - The marks stay after a restart. The script never closes or removes a tab.
@@ -21,3 +22,7 @@ The script needs [fx-autoconfig](https://github.com/MrOtherGuy/fx-autoconfig).
 3. Copy `folder-grid.uc.mjs` into `<profile>/chrome/JS/`.
 4. Restart Zen. If the script does not load, open `about:support`, click
    "Clear startup cache", and restart again.
+
+## License
+
+MPL-2.0. The tile style and the drag logic follow Zen's Essentials code.

@@ -1,7 +1,11 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 // ==UserScript==
 // @name           Zen Folder Grid
 // @description    Shows chosen tabs of a Zen folder as an icon grid above its normal tabs.
-// @version        0.1.0
+// @version        0.2.0
 // ==/UserScript==
 
 // The script only sets a mark and changes tab order. It never closes or
@@ -10,6 +14,8 @@
 const ATTR = "zen-folder-grid-icon";
 const KEY = "zen-folder-grid-icon";
 const DROP_ATTR = "zen-folder-grid-drop";
+const FAVICON_BG_PREF = "zen.theme.essentials-favicon-bg";
+const FAVICON_BG_ATTR = "zen-folder-grid-favicon-bg";
 
 const STRINGS = {
   en: { toIcon: "Show as Icon", toTab: "Show as Tab" },
@@ -19,28 +25,123 @@ const STRINGS = {
 const CSS = `
 :root[zen-sidebar-expanded] #tabbrowser-tabs zen-folder > .tab-group-container:has(> tab[${ATTR}]) {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(max(23.7%, calc(var(--tab-min-height) + 4px)), 1fr));
+  /* Zen sets --tab-min-height: 46px on #zen-essentials; only the tiles get it here. */
+  grid-template-columns: repeat(auto-fit, minmax(max(23.7%, calc(46px + 4px)), 1fr));
   column-gap: 4px;
   padding-inline-start: 14px;
   & > :not(tab[${ATTR}]) {
     grid-column: 1 / -1;
     margin-inline-start: calc(var(--zen-folder-indent) - 14px) !important;
   }
+  /* A collapsed folder shows only its active tab: put an active icon first. */
+  zen-folder[collapsed] > & > tab[${ATTR}][folder-active] {
+    order: -1;
+  }
   & > tab[${ATTR}] {
     margin-inline-start: 0 !important;
     width: auto !important;
     min-width: 0 !important;
     max-width: none !important;
-    --toolbarbutton-padding-inner: 0;
-    & .tab-content { justify-content: center; }
-    & .tab-label-container, & .tab-close-button { display: none !important; }
-    & .tab-icon-image, & .tab-icon-overlay { margin-inline-end: 0 !important; }
-    & .tab-background { border-radius: var(--border-radius-medium) !important; }
-    &:not([visuallyselected], [multiselected="true"]) .tab-background {
-      background: var(--zen-toolbar-element-bg);
-    }
     &[${DROP_ATTR}="before"] .tab-background { box-shadow: inset 2px 0 0 var(--zen-primary-color); }
     &[${DROP_ATTR}="after"] .tab-background { box-shadow: inset -2px 0 0 var(--zen-primary-color); }
+  }
+}
+
+/* The tile look, the same as Zen's .tabbrowser-tab[zen-essential="true"]. */
+:root[zen-sidebar-expanded] #tabbrowser-tabs zen-folder > .tab-group-container > tab[${ATTR}] {
+  --tab-min-height: 46px;
+  --toolbarbutton-padding-inner: 0;
+  --tab-background-color-selected: light-dark(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.2));
+
+  & .tab-background {
+    border-radius: var(--border-radius-medium) !important;
+  }
+  &:not([visuallyselected], [multiselected="true"]) .tab-background {
+    background: var(--zen-toolbar-element-bg);
+    border: none;
+  }
+  & .tab-content {
+    display: flex;
+    justify-content: center;
+  }
+  & .tab-label-container,
+  & .tab-close-button,
+  & .tab-reset-button,
+  & .tab-reset-pin-button {
+    display: none !important;
+  }
+  & .tab-icon-image,
+  & .tab-icon-overlay {
+    margin-inline-end: 0 !important;
+  }
+  &:hover .tab-background {
+    background: light-dark(rgba(0, 0, 0, 0.1), var(--tab-background-color-selected));
+  }
+
+  /* Zen uses @media -moz-pref() here, but that works only in browser style
+     sheets. The script copies the pref to an attribute instead. */
+  :root[${FAVICON_BG_ATTR}] & {
+    &[visuallyselected] > .tab-stack > .tab-background {
+      &::after {
+        content: "";
+        inset: -50%;
+        filter: blur(20px);
+        position: absolute;
+        background-size: contain;
+        background-clip: padding-box;
+        background-image: var(--zen-essential-tab-icon);
+        z-index: -1;
+        background-position: center;
+        fill: currentColor;
+        -moz-context-properties: fill, fill-opacity;
+        corner-shape: superellipse(var(--zen-squircle-value));
+      }
+
+      background: transparent;
+      overflow: hidden;
+      position: relative;
+      --zen-essential-bg-margin: 2px;
+      --zen-essential-tab-selected-bg: light-dark(rgba(255, 255, 255, 0.85), color-mix(in srgb, var(--zen-primary-color), rgba(132, 132, 132, 0.85) 40%));
+      --zen-essential-tab-selected-bg-hover: light-dark(rgba(255, 255, 255, 0.8), color-mix(in srgb, var(--zen-primary-color), rgba(132, 132, 132, 0.85) 30%));
+
+      :root[zen-default-theme="true"] & {
+        --zen-essential-tab-selected-bg: light-dark(rgba(255, 255, 255, 0.85), rgba(68, 64, 64, 0.85));
+        --zen-essential-tab-selected-bg-hover: light-dark(rgba(255, 255, 255, 0.8), rgba(68, 64, 64, 0.75));
+      }
+
+      &::before {
+        background: var(--zen-essential-tab-selected-bg);
+        margin: var(--zen-essential-bg-margin);
+        border-radius: calc(var(--border-radius-medium) - var(--zen-essential-bg-margin));
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        content: "";
+        transition: background 0.1s ease-in-out;
+        corner-shape: superellipse(var(--zen-squircle-value));
+      }
+    }
+
+    &[visuallyselected]:hover .tab-background::before {
+      background: var(--zen-essential-tab-selected-bg-hover);
+    }
+  }
+
+  /* A Glance tab opened from a tile floats on its corner, as on Essentials. */
+  & .tabbrowser-tab {
+    position: absolute;
+    top: 0;
+    right: 0;
+    --tab-collapsed-width: 34px;
+    --tab-min-height: 16px;
+    width: var(--tab-collapsed-width) !important;
+    z-index: 1;
+    pointer-events: none;
+
+    & .tab-background {
+      background: light-dark(rgb(249, 249, 249), rgb(63, 63, 63)) !important;
+      border: 2px solid light-dark(rgba(0, 0, 0, 0.4), rgba(255, 255, 255, 0.4));
+    }
   }
 }
 `;
@@ -75,13 +176,29 @@ function gridOf(folder) {
   return grid;
 }
 
-function mark(tab) {
+/** The favicon behind a selected tile, as Zen's setEssentialTabIcon does. */
+function setTileIcon(tab) {
+  tab.style.setProperty(
+    "--zen-essential-tab-icon",
+    `url(${tab.getAttribute("image") ?? ""})`
+  );
+}
+
+function setIconAttr(tab) {
   tab.setAttribute(ATTR, "true");
+  setTileIcon(tab);
+}
+
+function mark(tab) {
+  setIconAttr(tab);
   SessionStore.setCustomTabValue(tab, KEY, "1");
 }
 
 function unmark(tab) {
   tab.removeAttribute(ATTR);
+  if (!tab.hasAttribute("zen-essential")) {
+    tab.style.removeProperty("--zen-essential-tab-icon");
+  }
   tab.removeAttribute(DROP_ATTR);
   if (SessionStore.getCustomTabValue(tab, KEY)) {
     SessionStore.deleteCustomTabValue(tab, KEY);
@@ -299,7 +416,7 @@ function onDrop(event) {
     if (!tab.pinned) {
       gBrowser.pinTab(tab);
     }
-    tab.setAttribute(ATTR, "true");
+    setIconAttr(tab);
   }
   if (target.after) {
     gBrowser.moveTabsAfter(tabs, target.tab);
@@ -318,7 +435,7 @@ function onDrop(event) {
 
 function restoreMark(tab) {
   if (SessionStore.getCustomTabValue(tab, KEY)) {
-    tab.setAttribute(ATTR, "true");
+    setIconAttr(tab);
   }
 }
 
@@ -327,6 +444,16 @@ async function init() {
   windowUtils.loadSheetUsingURIString(
     "data:text/css," + encodeURIComponent(CSS),
     windowUtils.AUTHOR_SHEET
+  );
+  const syncFaviconBg = () =>
+    document.documentElement.toggleAttribute(
+      FAVICON_BG_ATTR,
+      Services.prefs.getBoolPref(FAVICON_BG_PREF, false)
+    );
+  syncFaviconBg();
+  Services.prefs.addObserver(FAVICON_BG_PREF, syncFaviconBg);
+  window.addEventListener("unload", () =>
+    Services.prefs.removeObserver(FAVICON_BG_PREF, syncFaviconBg)
   );
   for (const tab of gBrowser.tabs) {
     restoreMark(tab);
@@ -350,6 +477,11 @@ async function init() {
   });
 
   container.addEventListener("SSTabRestoring", e => restoreMark(e.target));
+  container.addEventListener("TabAttrModified", e => {
+    if (isIcon(e.target) && e.detail.changed.includes("image")) {
+      setTileIcon(e.target);
+    }
+  });
   // Check after the running move ends, so Zen's own move code is never
   // changed in the middle.
   const later = tab => queueMicrotask(() => check(tab));
