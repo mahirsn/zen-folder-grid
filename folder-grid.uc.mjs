@@ -40,10 +40,6 @@ const CSS = `
     grid-column: 1 / -1;
     margin-inline-start: calc(var(--zen-folder-indent) - 14px) !important;
   }
-  /* A collapsed folder shows only its active tab: put an active icon first. */
-  zen-folder[collapsed] > & > tab[${ATTR}][folder-active] {
-    order: -1;
-  }
   & > tab[${ATTR}] {
     margin-inline-start: 0 !important;
     width: auto !important;
@@ -220,23 +216,72 @@ function setTileIcon(tab) {
   );
 }
 
+/**
+ * The tab and its copies in the other windows. Zen syncs pinned tabs across
+ * windows (ZenWindowSync.sys.mjs); a copy has the same id.
+ */
+function withCopies(tab) {
+  const tabs = [tab];
+  if (!tab.id) {
+    return tabs;
+  }
+  for (const win of Services.wm.getEnumerator("navigator:browser")) {
+    const copy = win === window ? null : win.document.getElementById(tab.id);
+    if (copy && win.gBrowser?.isTab(copy)) {
+      tabs.push(copy);
+    }
+  }
+  return tabs;
+}
+
 function setIconAttr(tab) {
-  tab.setAttribute(ATTR, "true");
-  setTileIcon(tab);
+  for (const t of withCopies(tab)) {
+    t.setAttribute(ATTR, "true");
+    setTileIcon(t);
+  }
+  fillIcon(tab);
 }
 
 function mark(tab) {
   setIconAttr(tab);
-  SessionStore.setCustomTabValue(tab, KEY, "1");
+  for (const t of withCopies(tab)) {
+    SessionStore.setCustomTabValue(t, KEY, "1");
+  }
 }
 
 function unmark(tab) {
-  tab.removeAttribute(ATTR);
-  if (!tab.hasAttribute("zen-essential")) {
-    tab.style.removeProperty("--zen-essential-tab-icon");
+  for (const t of withCopies(tab)) {
+    t.removeAttribute(ATTR);
+    if (!t.hasAttribute("zen-essential")) {
+      t.style.removeProperty("--zen-essential-tab-icon");
+    }
+    if (SessionStore.getCustomTabValue(t, KEY)) {
+      SessionStore.deleteCustomTabValue(t, KEY);
+    }
   }
-  if (SessionStore.getCustomTabValue(tab, KEY)) {
-    SessionStore.deleteCustomTabValue(tab, KEY);
+}
+
+/**
+ * A tile shows only the icon, so it needs one. An unloaded tab whose session
+ * entry has no icon gets the icon that Firefox stored for the page.
+ */
+async function fillIcon(tab) {
+  if (tab.getAttribute("image") || !tab.hasAttribute("pending")) {
+    return;
+  }
+  let favicon = null;
+  try {
+    favicon = await PlacesUtils.favicons.getFaviconForPage(
+      tab.linkedBrowser.currentURI
+    );
+  } catch {}
+  if (
+    favicon?.dataURI &&
+    tab.isConnected &&
+    isIcon(tab) &&
+    !tab.getAttribute("image")
+  ) {
+    gBrowser.setIcon(tab, favicon.dataURI.spec);
   }
 }
 
@@ -749,8 +794,33 @@ function onDragEnd() {
 }
 
 function restoreMark(tab) {
+  // A window opened later gets copies of the synced tabs; take their marks.
+  const copyMarked = withCopies(tab).slice(1).some(isIcon);
+  if (copyMarked && !SessionStore.getCustomTabValue(tab, KEY)) {
+    SessionStore.setCustomTabValue(tab, KEY, "1");
+  }
   if (SessionStore.getCustomTabValue(tab, KEY)) {
-    setIconAttr(tab);
+    tab.setAttribute(ATTR, "true");
+    setTileIcon(tab);
+    fillIcon(tab);
+  }
+}
+
+/**
+ * A tab restored later (for example with "Reopen Closed Tab") comes back with
+ * its mark. If it is not in the grid of its folder, it goes to the end of it.
+ */
+function placeRestored(tab) {
+  const folder = folderOf(tab);
+  if (!isIcon(tab) || !folder || gridOf(folder).includes(tab)) {
+    check(tab);
+    return;
+  }
+  const grid = gridOf(folder);
+  if (grid.length) {
+    gBrowser.moveTabAfter(tab, grid.at(-1));
+  } else {
+    gBrowser.moveTabBefore(tab, itemsOf(folder)[0]);
   }
 }
 
@@ -794,10 +864,14 @@ async function init() {
     }
   });
 
-  container.addEventListener("SSTabRestoring", e => restoreMark(e.target));
+  container.addEventListener("SSTabRestoring", e => {
+    restoreMark(e.target);
+    queueMicrotask(() => placeRestored(e.target));
+  });
   container.addEventListener("TabAttrModified", e => {
     if (isIcon(e.target) && e.detail.changed.includes("image")) {
       setTileIcon(e.target);
+      fillIcon(e.target);
     }
   });
   // Check after the running move ends, so Zen's own move code is never
