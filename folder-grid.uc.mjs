@@ -16,13 +16,18 @@ const KEY = "zen-folder-grid-icon";
 const PLACEHOLDER = "zen-folder-grid-placeholder";
 const DRAGGING_ATTR = "zen-folder-grid-dragging";
 const DRAG_TILE_ATTR = "zen-folder-grid-drag-tile";
+const ZONE = "zen-folder-grid-zone";
+/** Tile height: Zen's 46px --tab-min-height of Essentials plus 2 * 2px margin. */
+const TILE_HEIGHT = 50;
 const FAVICON_BG_PREF = "zen.theme.essentials-favicon-bg";
 const FAVICON_BG_ATTR = "zen-folder-grid-favicon-bg";
 
 const STRINGS = {
-  en: { toIcon: "Show as Icon", toTab: "Show as Tab" },
-  tr: { toIcon: "İkon Yap", toTab: "Normal Sekme Yap" },
+  en: { toIcon: "Show as Icon", toTab: "Show as Tab", zone: "Drop to add as icon" },
+  tr: { toIcon: "İkon Yap", toTab: "Normal Sekme Yap", zone: "İkon olarak eklemek için bırak" },
 };
+
+let TEXT = STRINGS.en;
 
 const CSS = `
 :root[zen-sidebar-expanded] #tabbrowser-tabs zen-folder > .tab-group-container:has(> tab[${ATTR}]) {
@@ -47,6 +52,28 @@ const CSS = `
   }
   &[${DRAGGING_ATTR}] > :is(tab[${ATTR}], .${PLACEHOLDER}) {
     transition: var(--tab-dragover-transition);
+  }
+}
+
+/* The drop area of a folder without icons, as Zen's zen-essentials-promo. */
+:root[zen-sidebar-expanded] #tabbrowser-tabs .${ZONE} {
+  background: color-mix(in srgb, var(--zen-primary-color) 60%, transparent);
+  outline: 1px dashed currentColor;
+  border: 1px solid var(--zen-primary-color);
+  border-radius: var(--border-radius-medium);
+  justify-content: center;
+  align-items: center;
+  padding: 6px 0;
+  margin-block: 2px;
+  font-size: smaller;
+  font-weight: 600;
+  transition: background 0.1s;
+  &[dragover] {
+    background: color-mix(in srgb, var(--zen-primary-color) 40%, transparent);
+    outline: none;
+  }
+  & > * {
+    pointer-events: none;
   }
 }
 
@@ -166,7 +193,12 @@ function folderOf(tab) {
 
 /** Visible items of a folder in DOM order (tabs, subfolders, split views). */
 const itemsOf = folder =>
-  folder.allItems.filter(item => !item.hasAttribute("zen-empty-tab"));
+  folder.allItems.filter(
+    item =>
+      !item.hasAttribute("zen-empty-tab") &&
+      !item.classList.contains(PLACEHOLDER) &&
+      !item.classList.contains(ZONE)
+  );
 
 /** The leading run of icon tabs of a folder: this is the grid. */
 function gridOf(folder) {
@@ -274,8 +306,7 @@ function contextTabs() {
 }
 
 function initMenu() {
-  const lang = Services.locale.appLocaleAsBCP47.split("-")[0];
-  const text = STRINGS[lang] ?? STRINGS.en;
+  const text = TEXT;
   const menu = document.getElementById("tabContextMenu");
   const make = (id, label, run) => {
     const item = document.createXULElement("menuitem");
@@ -456,7 +487,7 @@ function leaveGrid({ animate = true } = {}) {
 }
 
 /** Shows the drag image as a tile (on) or as a tab row (off), as Zen does. */
-function setDragImageTile(event, on) {
+function setDragImageTile(event, on, tile = null) {
   const dnd = gBrowser.tabContainer.tabDragAndDrop;
   const args = dnd?.originalDragImageArgs;
   const wrapper = args?.[0];
@@ -465,7 +496,6 @@ function setDragImageTile(event, on) {
   }
   const clones = [...wrapper.children].filter(child => gBrowser.isTab(child));
   if (on) {
-    const tile = over.slots[0];
     image ??= { width: wrapper.style.width, height: wrapper.style.height };
     image.tile = true;
     wrapper.style.width = tile.w + "px";
@@ -502,6 +532,102 @@ function setDragImageTile(event, on) {
   event.dataTransfer.updateDragImage(...args);
 }
 
+/** The drop area shown in a folder without icons while a tab is dragged. */
+let zone = null;
+
+function removeZone() {
+  zone?.element.remove();
+  zone = null;
+}
+
+/** The folder without icons under the pointer that can take the drag. */
+function zoneFolder(event) {
+  const folder = event.target.closest?.("zen-folder");
+  if (
+    !folder ||
+    folder.collapsed ||
+    folder.isLiveFolder ||
+    gridOf(folder).length ||
+    !draggedTabs(event)
+  ) {
+    return null;
+  }
+  return folder;
+}
+
+function showZone(folder) {
+  if (zone?.folder === folder) {
+    return;
+  }
+  removeZone();
+  const element = document.createXULElement("hbox");
+  element.className = ZONE;
+  const label = document.createXULElement("label");
+  label.setAttribute("value", TEXT.zone);
+  element.append(label);
+  const first = itemsOf(folder)[0];
+  if (first) {
+    first.before(element);
+  } else {
+    folder.groupContainer.append(element);
+  }
+  zone = { folder, element };
+}
+
+/** True if the pointer is over the drop area. */
+function overZone(event) {
+  if (!zone) {
+    return false;
+  }
+  const r = zone.element.getBoundingClientRect();
+  const { clientX: x, clientY: y } = event;
+  return x >= r.left && x < r.right && y >= r.top && y < r.bottom;
+}
+
+/** The size of a new tile in a folder, as Zen's #essentialTileRect. */
+function newTileSize(folder) {
+  const width = folder.groupContainer.getBoundingClientRect().width;
+  return { w: Math.max(width * 0.237, TILE_HEIGHT), h: TILE_HEIGHT };
+}
+
+/** Pins a tab and takes it out of Essentials, as Zen's folder drop does. */
+function prepareForFolder(tab) {
+  if (tab.hasAttribute("zen-essential")) {
+    gZenPinnedTabManager.removeEssentials(tab, false);
+  }
+  if (!tab.pinned) {
+    gBrowser.pinTab(tab);
+  }
+  setIconAttr(tab);
+}
+
+/**
+ * Zen's drop landing: on macOS the OS slides the drag image onto the new
+ * place of the tab (ZenDragAndDrop.js, #landDragImage). Call before the move.
+ * @returns {Function} Call it after the move.
+ */
+function prepareLanding(event) {
+  const dnd = gBrowser.tabContainer.tabDragAndDrop;
+  if (window.gReduceMotion || !dnd?._landDragImageOnElements) {
+    return () => {};
+  }
+  const elements = dnd._dragImageTabs ?? [draggedTab(event)];
+  const placesBefore = new Map(elements.map(e => [e, dnd._placeOf(e)]));
+  return () => dnd._landDragImageOnElements(elements, placesBefore);
+}
+
+/** Marks the dropped tabs that are now in the folder; check() does the rest. */
+function finishDrop(tabs, folder) {
+  for (const tab of tabs) {
+    // A move that Zen did not do (for example from another space) leaves the
+    // tab outside the grid; check() then removes the mark again.
+    if (folderOf(tab) === folder) {
+      mark(tab);
+    }
+    check(tab);
+  }
+}
+
 function quietZen() {
   const dnd = gBrowser.tabContainer.tabDragAndDrop;
   dnd?.finishAnimateTabMove?.();
@@ -522,13 +648,29 @@ function onDragStart(event) {
 }
 
 function onDragOver(event) {
+  const emptyFolder = zoneFolder(event);
+  if (emptyFolder) {
+    showZone(emptyFolder);
+  } else {
+    removeZone();
+  }
+  if (overZone(event)) {
+    leaveGrid();
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    event.dataTransfer.dropEffect = "move";
+    quietZen();
+    zone.element.setAttribute("dragover", "true");
+    setDragImageTile(event, true, newTileSize(zone.folder));
+    return;
+  }
+  zone?.element.removeAttribute("dragover");
+
   const folder = gridFolder(event);
   const tabs = folder && draggedTabs(event);
   if (!tabs) {
-    if (over) {
-      leaveGrid();
-      setDragImageTile(event, false);
-    }
+    leaveGrid();
+    setDragImageTile(event, false);
     return;
   }
   event.preventDefault();
@@ -539,11 +681,31 @@ function onDragOver(event) {
     leaveGrid();
     enterGrid(folder, draggedTab(event));
   }
-  setDragImageTile(event, true);
+  setDragImageTile(event, true, over.slots[0]);
   updateGrid(event);
 }
 
 function onDrop(event) {
+  if (overZone(event) && draggedTabs(event)) {
+    const tabs = draggedTabs(event);
+    const { folder } = zone;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    quietZen();
+    removeZone();
+    const land = prepareLanding(event);
+    tabs.forEach(prepareForFolder);
+    const first = itemsOf(folder)[0];
+    if (!first) {
+      folder.addTabs(tabs);
+    } else if (first !== tabs[0] || tabs.length > 1) {
+      gBrowser.moveTabsBefore(tabs, first);
+    }
+    finishDrop(tabs, folder);
+    land();
+    return;
+  }
+  removeZone();
   const folder = gridFolder(event);
   const tabs = folder && draggedTabs(event);
   if (!tabs || over?.folder !== folder) {
@@ -563,17 +725,8 @@ function onDrop(event) {
   if (index === origin && tabs.length === 1) {
     return;
   }
-  for (const tab of tabs) {
-    // Folder tabs are pinned and not in Essentials; Zen's own folder drop
-    // does the same.
-    if (tab.hasAttribute("zen-essential")) {
-      gZenPinnedTabManager.removeEssentials(tab, false);
-    }
-    if (!tab.pinned) {
-      gBrowser.pinTab(tab);
-    }
-    setIconAttr(tab);
-  }
+  const land = prepareLanding(event);
+  tabs.forEach(prepareForFolder);
   if (others.length) {
     if (index < others.length) {
       gBrowser.moveTabsBefore(tabs, others[index]);
@@ -581,17 +734,12 @@ function onDrop(event) {
       gBrowser.moveTabsAfter(tabs, others.at(-1));
     }
   }
-  for (const tab of tabs) {
-    // A move that Zen did not do (for example from another space) leaves the
-    // tab outside the grid; check() then removes the mark again.
-    if (folderOf(tab) === folder) {
-      mark(tab);
-    }
-    check(tab);
-  }
+  finishDrop(tabs, folder);
+  land();
 }
 
 function onDragEnd() {
+  removeZone();
   leaveGrid({ animate: false });
   // Grids left with animate keep the transition until the drag ends.
   for (const container of document.querySelectorAll(`[${DRAGGING_ATTR}]`)) {
@@ -608,6 +756,7 @@ function restoreMark(tab) {
 
 async function init() {
   await gZenStartup.promiseInitialized;
+  TEXT = STRINGS[Services.locale.appLocaleAsBCP47.split("-")[0]] ?? STRINGS.en;
   windowUtils.loadSheetUsingURIString(
     "data:text/css," + encodeURIComponent(CSS),
     windowUtils.AUTHOR_SHEET
@@ -639,8 +788,9 @@ async function init() {
   container.addEventListener("drop", onDrop, true);
   container.addEventListener("dragend", onDragEnd, true);
   container.addEventListener("dragleave", event => {
-    if (over && !container.contains(event.relatedTarget)) {
+    if (!container.contains(event.relatedTarget)) {
       leaveGrid();
+      removeZone();
     }
   });
 

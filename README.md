@@ -6,8 +6,11 @@ the folder stay below the grid.
 
 - Right-click a tab in a folder: **Show as Icon** / **Show as Tab**.
 - The icons look and act like Essentials tiles.
-- Drag a tab onto the grid to add it. Drag inside the grid to change the order.
-  Drag an icon out of the grid to make it a normal tab again.
+- Drag a tab onto the grid to add it. Drag inside the grid to change the order;
+  the tiles move aside as on Essentials. Drag an icon out of the grid to make it
+  a normal tab again.
+- In a folder without icons, a drop area shows under the folder name while you
+  drag a tab. Drop the tab there to make the first icon.
 - The marks stay after a restart. The script never closes or removes a tab.
 
 Tested on Zen 1.23b.
