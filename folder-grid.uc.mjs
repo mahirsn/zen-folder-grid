@@ -5,7 +5,7 @@
 // ==UserScript==
 // @name           Zen Folder Grid
 // @description    Shows chosen tabs of a Zen folder as an icon grid above its normal tabs.
-// @version        0.2.3
+// @version        0.2.4
 // ==/UserScript==
 
 // The script only sets a mark and changes tab order. It never closes or
@@ -842,6 +842,61 @@ function placeRestored(tab) {
   }
 }
 
+/** The running collapse or expand slide of each grid container. */
+const slides = new WeakMap();
+
+/**
+ * Zen slides a folder open or closed with a negative margin-top on its first
+ * child (ZenFolders.mjs, animateCollapse/animateExpand). A grid row ignores
+ * that margin, so the grid would only jump at the end. This animates the
+ * height of the grid with the same timing; align-content: end moves the
+ * content up under the clip, as the margin does.
+ */
+function slideFolder(event) {
+  const folder = event.target;
+  const c = folder.groupContainer;
+  const collapse = event.type === "TabGroupCollapse";
+  // A folder with an active tab stays open; Zen only hides the other items.
+  if (
+    !folder.isZenFolder ||
+    !gridOf(folder).length ||
+    folder.hasAttribute("has-active") ||
+    gZenFolders._dontAnimateFolder ||
+    !gZenFolders.animateCollapse // the Zen API this follows
+  ) {
+    slides.get(c)?.cancel();
+    return;
+  }
+  // Zen shows the container before this runs. A closed folder keeps the
+  // negative margin of its first child until Zen's expand ends.
+  const running = slides.get(c);
+  let from = c.getBoundingClientRect().height;
+  if (!collapse && running?.playState !== "running" && running?.playState !== "finished") {
+    if (!(parseFloat(folder.groupStartElement?.style.marginTop) < 0)) {
+      return;
+    }
+    from = 0;
+  }
+  running?.cancel();
+  const to = collapse ? 0 : c.getBoundingClientRect().height;
+  const frame = height => ({ height: `${height}px`, alignContent: "end", overflowY: "clip" });
+  const slide = c.animate([frame(from), frame(to)], {
+    duration: 180,
+    easing: "ease-in-out",
+    // Zen hides the container only after its own animation; until then the
+    // grid stays closed.
+    fill: collapse ? "forwards" : "none",
+  });
+  slides.set(c, slide);
+  if (collapse) {
+    folder.addEventListener(
+      "ZenFolderAnimationFinished",
+      () => slides.get(c) === slide && slide.cancel(),
+      { once: true }
+    );
+  }
+}
+
 async function init() {
   await gZenStartup.promiseInitialized;
   TEXT = STRINGS[Services.locale.appLocaleAsBCP47.split("-")[0]] ?? STRINGS.en;
@@ -869,6 +924,10 @@ async function init() {
     }
   }
   initMenu();
+
+  // Added after Zen's own listeners, so Zen has set up its animation first.
+  window.addEventListener("TabGroupCollapse", slideFolder);
+  window.addEventListener("TabGroupExpand", slideFolder);
 
   const container = gBrowser.tabContainer;
   container.addEventListener("dragstart", onDragStart);
