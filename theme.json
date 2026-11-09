@@ -4,8 +4,8 @@
   "description": "Shows chosen tabs of a Zen folder as an icon grid above its normal tabs.",
   "homepage": "https://github.com/mahirsn/zen-folder-grid",
   "author": "mahirsn",
-  "version": "0.2.4",
-  "updatedAt": "2026-11-09T19:00:00Z",
+  "version": "0.2.5",
+  "updatedAt": "2026-11-10T00:00:00Z",
   "license": "MPL-2.0",
   "fork": [
     "zen"

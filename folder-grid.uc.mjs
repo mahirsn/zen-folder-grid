@@ -5,7 +5,7 @@
 // ==UserScript==
 // @name           Zen Folder Grid
 // @description    Shows chosen tabs of a Zen folder as an icon grid above its normal tabs.
-// @version        0.2.4
+// @version        0.2.5
 // ==/UserScript==
 
 // The script only sets a mark and changes tab order. It never closes or
@@ -778,14 +778,16 @@ function onDrop(event) {
   event.preventDefault();
   event.stopImmediatePropagation();
   quietZen();
-  const { index, origin, moving, tiles } = over;
+  const { index, origin, moving, tiles, placeholder } = over;
   const others = tiles.filter(
     tile => tile !== moving && gBrowser.isTab(tile) && !tabs.includes(tile)
   );
   // The tiles are already where the drop puts them: end the drag without a
   // transition, so nothing jumps when the DOM changes.
   leaveGrid({ animate: false });
-  if (index === origin && tabs.length === 1) {
+  // A tile dropped on its own slot stays. A tab from outside always moves:
+  // its origin is the free cell after the grid.
+  if (!placeholder && index === origin && tabs.length === 1) {
     return;
   }
   const land = prepareLanding(event);
