@@ -4,9 +4,7 @@ A [Zen Browser](https://zen-browser.app) script. It shows chosen tabs of a folde
 as an icon grid at the top of the folder, like Essentials. The normal tabs of
 the folder stay below the grid.
 
-| Before | After |
-| :---: | :---: |
-| ![A Zen folder with eleven normal tabs](images/before.png) | ![The same folder with eight tabs as an icon grid](images/after.png) |
+![A Zen folder before and after: eight of its tabs become an icon grid](images/preview.png)
 
 - Right-click a tab in a folder: **Show as Icon** / **Show as Tab**.
 - The icons look and act like Essentials tiles.

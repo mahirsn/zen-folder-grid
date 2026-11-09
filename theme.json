@@ -5,13 +5,23 @@
   "homepage": "https://github.com/mahirsn/zen-folder-grid",
   "author": "mahirsn",
   "version": "0.2.4",
-  "updatedAt": "2026-11-09T18:00:00Z",
+  "updatedAt": "2026-11-09T19:00:00Z",
   "license": "MPL-2.0",
-  "fork": ["zen"],
-  "tags": ["folders", "tabs", "essentials"],
+  "fork": [
+    "zen"
+  ],
+  "tags": [
+    "folders",
+    "tabs",
+    "essentials"
+  ],
   "scripts": {
     "folder-grid.uc.mjs": {
-      "include": ["chrome://browser/content/browser.xhtml"]
+      "include": [
+        "chrome://browser/content/browser.xhtml"
+      ]
     }
-  }
+  },
+  "readme": "https://raw.githubusercontent.com/mahirsn/zen-folder-grid/main/README.md",
+  "image": "https://raw.githubusercontent.com/mahirsn/zen-folder-grid/main/images/preview.png"
 }
