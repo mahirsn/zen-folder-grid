@@ -5,7 +5,7 @@
 // ==UserScript==
 // @name           Zen Folder Grid
 // @description    Shows chosen tabs of a Zen folder as an icon grid above its normal tabs.
-// @version        0.2.2
+// @version        0.2.3
 // ==/UserScript==
 
 // The script only sets a mark and changes tab order. It never closes or
@@ -106,6 +106,13 @@ const CSS = `
   &[zen-pinned-changed="true"] > .tab-stack > .tab-content > .tab-icon-stack {
     position: static !important;
     transform: none !important;
+  }
+  /* Sound state shows on the icon corner, not as a button beside the icon. */
+  & .tab-audio-button {
+    display: none !important;
+  }
+  & .tab-icon-overlay:is([soundplaying], [muted], [activemedia-blocked]) {
+    display: revert;
   }
   &:hover .tab-background {
     background: light-dark(rgba(0, 0, 0, 0.1), var(--tab-background-color-selected));
