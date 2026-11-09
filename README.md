@@ -17,7 +17,36 @@ the folder stay below the grid.
 
 Tested on Zen 1.23b, with fx-autoconfig and with Sine 2.3.3.
 
-## Install with Sine
+## Install
+
+Choose one way. Sine and fx-autoconfig both use `<profile>/chrome/utils/`, so
+use only one of them. Close Zen before you install.
+
+### Linux: install script
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/mahirsn/zen-folder-grid/main/install.sh -o install.sh
+bash install.sh
+```
+
+The script finds Zen and its profiles, installs
+[fx-autoconfig](https://github.com/MrOtherGuy/fx-autoconfig) and the mod, and
+asks for sudo when the Zen folder is not yours. If it does not find Zen, give
+the folder: `bash install.sh /path/to/zen`. Flatpak and AppImage installs are
+not supported.
+
+### Windows 10 or later: install script
+
+1. Download the [ZIP of this repository](https://github.com/mahirsn/zen-folder-grid/archive/refs/heads/main.zip) and extract it.
+2. Right-click `install.bat` and choose "Run as administrator".
+
+The script does the same steps as the Linux script. It is tested only with
+Wine, not on a real Windows yet.
+
+Both scripts keep a `.bak` copy of each file they replace, and they stop if the
+profile uses Sine.
+
+### Sine
 
 1. Install [Sine](https://github.com/CosmoCreeper/Sine).
 2. In Sine settings, turn on "Enable installing JS from unofficial sources"
@@ -26,27 +55,16 @@ Tested on Zen 1.23b, with fx-autoconfig and with Sine 2.3.3.
 3. In Sine settings, add the mod `mahirsn/zen-folder-grid`.
 4. Restart Zen.
 
-## Install with fx-autoconfig
-
-Use this way if you do not use Sine. Sine and fx-autoconfig both use
-`<profile>/chrome/utils/`, so install only one of them.
-
-The install scripts do the steps below for you. Close Zen first. They keep a
-`.bak` copy of each file they replace and stop if the profile uses Sine.
-
-- Linux: `./install.sh` (or `./install.sh /path/to/zen`). It asks for sudo when
-  the Zen folder is not yours. Flatpak and AppImage installs are not supported.
-- Windows 10 or later: right-click `install.bat` and choose "Run as
-  administrator". Tested only with Wine, not on a real Windows yet.
-
-To install by hand:
+### By hand
 
 1. Copy `program/config.js` and `program/defaults/` of fx-autoconfig into the
    Zen install folder (for example `/opt/zen-browser-bin`).
 2. Copy `profile/chrome/utils/` of fx-autoconfig into `<profile>/chrome/utils/`.
 3. Copy `folder-grid.uc.mjs` into `<profile>/chrome/JS/`.
-4. Restart Zen. If the script does not load, open `about:support`, click
-   "Clear startup cache", and restart again.
+4. Restart Zen.
+
+If the mod does not load after an install, open `about:support`, click "Clear
+startup cache", and restart Zen.
 
 ## License
 
