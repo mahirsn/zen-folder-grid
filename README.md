@@ -29,6 +29,16 @@ Tested on Zen 1.23b, with fx-autoconfig and with Sine 2.3.3.
 Use this way if you do not use Sine. Sine and fx-autoconfig both use
 `<profile>/chrome/utils/`, so install only one of them.
 
+The install scripts do the steps below for you. Close Zen first. They keep a
+`.bak` copy of each file they replace and stop if the profile uses Sine.
+
+- Linux: `./install.sh` (or `./install.sh /path/to/zen`). It asks for sudo when
+  the Zen folder is not yours. Flatpak and AppImage installs are not supported.
+- Windows 10 or later: right-click `install.bat` and choose "Run as
+  administrator". Tested only with Wine, not on a real Windows yet.
+
+To install by hand:
+
 1. Copy `program/config.js` and `program/defaults/` of fx-autoconfig into the
    Zen install folder (for example `/opt/zen-browser-bin`).
 2. Copy `profile/chrome/utils/` of fx-autoconfig into `<profile>/chrome/utils/`.
